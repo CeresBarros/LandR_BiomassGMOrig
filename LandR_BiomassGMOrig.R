@@ -83,12 +83,12 @@ doEvent.LandR_BiomassGMOrig = function(sim, eventTime, eventType, debug = FALSE)
            ## do stuff for this event
            sim <- Init(sim)
            sim <- scheduleEvent(sim, start(sim) + P(sim)$growthInitialTime,
-                                "LandR_BiomassGMOrig", "mortalityAndGrowth", eventPriority = 5)
+                                "LandR_BiomassGMOrig", "mortalityAndGrowth", eventPriority = 5.25)
          },
          mortalityAndGrowth = {
            sim <- MortalityAndGrowth(sim)
            sim <- scheduleEvent(sim, time(sim) + 1, "LandR_BiomassGMOrig", "mortalityAndGrowth",
-                                eventPriority = 5)
+                                eventPriority = 5.25)
          },
          warning(paste("Undefined event type: '", current(sim)[1, "eventType", with = FALSE],
                        "' in module '", current(sim)[1, "moduleName", with = FALSE], "'", sep = ""))
