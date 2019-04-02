@@ -20,6 +20,8 @@ defineModule(sim, list(
     defineParameter("calibrate", "logical", FALSE, NA, NA, "should the model have detailed outputs?"),
     defineParameter("growthInitialTime", "numeric", default = 10, min = NA_real_, max = NA_real_,
                     desc = "Initial time for the growth event to occur - should be the same as the succession time step used in LBMR"),
+    defineParameter("sppEquivCol", "character", "Boreal", NA, NA,
+                    "The column in sim$specieEquivalency data.table to use as a naming convention"),
     defineParameter("successionTimestep", "numeric", 10, NA, NA,
                     desc = "defines the simulation time step, default is 10 years"),
     defineParameter(".plotInitialTime", "numeric", default = 0, min = NA, max = NA,
@@ -41,11 +43,15 @@ defineModule(sim, list(
     expectsInput("lastReg", "numeric",
                  desc = "time at last regeneration", sourceURL = NA),
     expectsInput("species", "data.table",
-                 desc = "a table that has species traits such as longevity...",
-                 sourceURL = "https://raw.githubusercontent.com/LANDIS-II-Foundation/Extensions-Succession-Archive/master/biomass-succession-archive/trunk/tests/v6.0-2.0/species.txt"),
+                 desc = paste("a table that has species traits such as longevity, shade tolerance, etc.",
+                              "Default is partially based on Dominic Cir and Yan's project"),
+                 sourceURL = "https://raw.githubusercontent.com/dcyr/LANDIS-II_IA_generalUseFiles/master/speciesTraits.csv"),
     expectsInput("speciesEcoregion", "data.table",
                  desc = "table defining the maxANPP, maxB and SEP, which can change with both ecoregion and simulation time",
-                 sourceURL = "https://raw.githubusercontent.com/LANDIS-II-Foundation/Extensions-Succession/master/biomass-succession-archive/trunk/tests/v6.0-2.0/biomass-succession-dynamic-inputs_test.txt")
+                 sourceURL = "https://raw.githubusercontent.com/LANDIS-II-Foundation/Extensions-Succession/master/biomass-succession-archive/trunk/tests/v6.0-2.0/biomass-succession-dynamic-inputs_test.txt"),
+    expectsInput("sppEquiv", "data.table",
+                 desc = "table of species equivalencies. See LandR::sppEquivalencies_CA.",
+                 sourceURL = "")
   ),
   outputObjects = bind_rows(
     #createsOutput("objectName", "objectClass", "output object description", ...),
@@ -226,11 +232,16 @@ MortalityAndGrowth <- function(sim) {
   cacheTags <- c(currentModule(sim), "function:.inputObjects")
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
-  # read species txt and convert it to data table
-  if (!suppliedElsewhere("species", sim)) {
-    mainInput <- prepInputsMainInput(url = NULL, dPath, cacheTags) ## uses default URL
-    sim$species <- prepInputsSpecies(url = extractURL("species"), dPath, cacheTags)
+
+  if(!suppliedElsewhere("species", sim)) {
+    speciesTable <- getSpeciesTable(dPath = dPath, cacheTags = cacheTags)
+    sim$species <- prepSpeciesTable(speciesTable = speciesTable,
+                                    speciesLayers = sim$speciesLayers,
+                                    sppEquiv = sim$sppEquiv[get(P(sim)$sppEquivCol) %in%
+                                                              names(sim$speciesLayers)],
+                                    sppEquivCol = P(sim)$sppEquivCol)
   }
+
   if (!suppliedElsewhere("speciesEcoregion", sim)) {
     sim$speciesEcoregion <- prepInputsSpeciesEcoregion(url = extractURL("speciesEcoregion"),
                                                        dPath = dPath, cacheTags = cacheTags)
